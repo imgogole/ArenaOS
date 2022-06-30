@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "utilities.h"
 #include <string.h>
+#include <sys/ucontext.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -11,17 +12,34 @@
 #define LSH_TOK_BUFSIZE 64
 #define LSH_TOK_DELIM " \t\r\n\a"
 
+/*-----Node types----*/
+
+#define FOLDER_TYPE 0
+#define FILE_TYPE 1
+
+/*-------------------*/
+
+/*-----Check OS------*/
+
+#ifdef _WIN32
+#define OS_INDEX 0
+#elifdef __linux__
+#define OS_INDEX 1
+#endif
+
+/*-------------------*/
+
 Node* CurrentDirectory;
+char* UserName;
 Node* RootDirectory;
 char* CurrentDirectoryName;
-char* UserName;
 char* ReadLine(void);
 char **SplitLine(char *line);
 int ExecuteCommand(char **args);
 
 int main()
 {
-    system("clear");
+    Clear(OS_INDEX);
 
     LoopGame();
 
@@ -36,6 +54,7 @@ int ArenaOS_exit(char **args);
 int ArenaOS_cd(char **args);
 int ArenaOS_tree(char **args);
 int ArenaOS_ls(char **args);
+int ArenaOS_cat(char **args);
 
 /*
 List of builtin commands, followed by their corresponding functions.
@@ -46,7 +65,8 @@ char *builtin_str[] =
     "exit",
     "cd",
     "tree",
-    "ls"
+    "ls",
+    "cat"
 };
 
 int (*builtin_func[]) (char **) =
@@ -55,7 +75,8 @@ int (*builtin_func[]) (char **) =
     &ArenaOS_exit,
     &ArenaOS_cd,
     &ArenaOS_tree,
-    &ArenaOS_ls
+    &ArenaOS_ls,
+    &ArenaOS_cat
 };
 
 int lsh_num_builtins()
@@ -94,7 +115,7 @@ int ArenaOS_cd(char **args)
     {
         CurrentDirectory = RootDirectory;
     }
-    else if (strcmp(args[0], "..") == 0)
+    else if (strcmp(args[1], "..") == 0)
     {
         CurrentDirectory = GetParent(CurrentDirectory);
     }
@@ -105,7 +126,39 @@ int ArenaOS_cd(char **args)
         {
             if (strcmp(GetNameLLNC(item), args[1]) == 0)
             {
-                CurrentDirectory = GetNodeValue(item);
+                Node* node = GetNodeValue(item);
+                if (GetDataType(GetData(node)) == FOLDER_TYPE) CurrentDirectory = GetNodeValue(item);
+                else fprintf(stderr, "ArenaOS: %s is not a folder.\n", GetNameLLNC(item));
+                return 1;
+            }
+            item = GetNext(item);
+        }
+
+        fprintf(stderr, "ArenaOS: No such file of directory.\n");
+        return 1;
+    }
+
+    return 1;
+}
+
+int ArenaOS_cat(char **args)
+{
+    Node* current = CurrentDirectory;
+
+    if (args[1] == NULL)
+    {
+        fprintf(stderr, "ArenaOS: Please specify a file name.\n");
+    }
+    else
+    {
+        LinkedList_NodeChain* item = GetFirstChild(current);
+        while (item != NULL)
+        {
+            if (strcmp(GetNameLLNC(item), args[1]) == 0)
+            {
+                Node* node = GetNodeValue(item);
+                if (GetDataType(GetData(node)) == FILE_TYPE) fprintf(stderr, "%s\n", GetDataContent(GetData(node)));
+                else fprintf(stderr, "ArenaOS: %s is a folder.\n", GetNameLLNC(item));
                 return 1;
             }
             item = GetNext(item);
@@ -126,17 +179,7 @@ int ArenaOS_tree(char **args)
 
 int ArenaOS_ls(char **args)
 {
-    Node* current = CurrentDirectory;
-
-    LinkedList_NodeChain* item = GetFirstChild(current);
-    while (item != NULL)
-    {
-        printf("%s      ", GetNameLLNC(item));
-        item = GetNext(item);
-    }
-
-    printf("\n");
-
+    ListDirectory(CurrentDirectory);
     return 1;
 }
 
@@ -155,18 +198,36 @@ void LoopGame(void)
     Node* n9;
     Node* n10;
     Node* n11;
+    Node* n12;
+    Node* n13;
+    Node* n14;
+    Node* n15;
+    Node* n16;
+    Node* n17;
 
-    n1 = CreateNode(NULL, NULL, "root");
-    n3 = CreateNode(NULL, n1, "lib");
-    n2 = CreateNode(NULL, n1, "bin");
-    n4 = CreateNode(NULL, n2, "minecraft");
-    n5 = CreateNode(NULL, n2, "blockbench");
-    n6 = CreateNode(NULL, n2, "tilesII");
-    n7 = CreateNode(NULL, n5, "project");
-    n8 = CreateNode(NULL, n7, "collections");
-    n9 = CreateNode(NULL, n7, "textures");
-    n10 = CreateNode(NULL, n1, "locales");
-    n11 = CreateNode(NULL, n6, "Records.txt");
+    FileData* FolderType = NewFileData(NULL);
+    FileData* FileType = NewFileData(NULL);
+    SetFileData(FolderType, FOLDER_TYPE, 0);
+    SetFileData(FileType, FILE_TYPE, "Hello world !");
+
+    n1 = CreateNode(NewFileData(FolderType), NULL, "root");
+    n3 = CreateNode(NewFileData(FolderType), n1, "lib");
+    n2 = CreateNode(NewFileData(FolderType), n1, "bin");
+    n4 = CreateNode(NewFileData(FolderType), n2, "minecraft");
+    n5 = CreateNode(NewFileData(FolderType), n2, "blockbench");
+    n6 = CreateNode(NewFileData(FolderType), n2, "tilesII");
+    n7 = CreateNode(NewFileData(FolderType), n5, "project");
+    n8 = CreateNode(NewFileData(FolderType), n7, "collections");
+    n9 = CreateNode(NewFileData(FolderType), n7, "textures");
+    n10 = CreateNode(NewFileData(FileType), n6, "Records");
+    n11 = CreateNode(NewFileData(FileType), n6, "Logs");
+    n12 = CreateNode(NewFileData(FolderType), n6, "Assets");
+    n13 = CreateNode(NewFileData(FolderType), n12, "Scripts");
+    n14 = CreateNode(NewFileData(FileType), n12, "Missile");
+    n15 = CreateNode(NewFileData(FileType), n13, "Main");
+    n16 = CreateNode(NewFileData(FileType), n13, "Database");
+    n17 = CreateNode(NewFileData(FileType), n13, "Photon");
+
 
     RootDirectory = n1;
     CurrentDirectory = n2;
@@ -200,6 +261,9 @@ void LoopGame(void)
     free(n7);
     free(n8);
     free(n9);
+
+    free(FolderType);
+    free(FileType);
 }
 
 char* ReadLine(void)

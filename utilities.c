@@ -7,6 +7,22 @@
 #define MIDDLE_PATH "├──"
 #define END_PATH "└──"
 
+// Add colors 
+
+void ResetColor(int IsBold)
+{
+    if (IsBold) printf("\033[1;37m");
+    else printf("\033[0;37m");
+}
+
+void Purple(int IsBold)
+{
+    if (IsBold) printf("\033[1;35m");
+    else printf("\033[0;35m");
+}
+
+// Utilities
+
 int StartsWith(const char *pre, const char *str)
 {
     return strncmp(pre, str, strlen(pre)) == 0;
@@ -21,7 +37,7 @@ struct LinkedList_NodeChain
 struct FileData
 {
     int Type;
-    byte Data;
+    char* Data;
 };
 
 typedef struct Node
@@ -100,6 +116,23 @@ void InsertNode(Node* parent, Node* node)
     }
 }
 
+void ListDirectory(Node* _current)
+{
+    Node* current = _current;
+
+    LinkedList_NodeChain* item = GetFirstChild(current);
+    while (item != NULL)
+    {
+        Node* node = item -> Value;
+        if (node != NULL) if (node -> Data != NULL) if (node -> Data -> Type == 0) Purple(1);
+        printf("%s      ", GetNameLLNC(item));
+        ResetColor(0);
+        item = GetNext(item);
+    }
+
+    printf("\n");
+}
+
 Node* CreateNode(FileData* data, Node* parent, char name[256])
 {
     Node* node = malloc(sizeof(Node));
@@ -117,7 +150,7 @@ Node* CreateNode(FileData* data, Node* parent, char name[256])
     return node;
 }
 
-FileData* CreateFileData(int Type, byte Data)
+FileData* CreateFileData(int Type, char* Data)
 {
     FileData* fileData = malloc(sizeof(FileData));
     if (fileData != NULL) 
@@ -143,14 +176,22 @@ int NodeCount(Node* node)
 
 void ShowTree(Node* node, int level)
 {
-    printf("%s\n", node -> Name);
-    LinkedList_NodeChain* linkedList = node -> Child;
-    for (LinkedList_NodeChain* n = linkedList; n != NULL; n = n -> Next)
-    {     
-        int IsEndPath = n -> Next == NULL;
-        for (int i = 0; i < level; i++) printf("|   ");
-        printf("%s ", (IsEndPath ? END_PATH : MIDDLE_PATH));
-        ShowTree(n -> Value, level + 1);
+    if (node != NULL)
+    {
+        if (node -> Data != NULL)
+        {
+            if (node -> Data -> Type == 0) Purple(1);
+        }
+        printf("%s\n", node -> Name);
+        ResetColor(0);        
+        LinkedList_NodeChain* linkedList = node -> Child;
+        for (LinkedList_NodeChain* n = linkedList; n != NULL; n = n -> Next)
+        {     
+            int IsEndPath = n -> Next == NULL;
+            for (int i = 0; i < level; i++) printf("|   ");
+            printf("%s ", (IsEndPath ? END_PATH : MIDDLE_PATH));
+            ShowTree(n -> Value, level + 1);
+        }
     }
 }
 
@@ -191,4 +232,47 @@ char* GetNameLLNC(LinkedList_NodeChain* llnc)
     if (llnc == NULL) return NULL;
     if (llnc -> Value == NULL) return NULL;
     return llnc -> Value -> Name;
+}
+
+FileData* NewFileData(FileData* copy)
+{
+    FileData* data = (FileData*)malloc(sizeof(FileData));
+    
+    if (data != NULL)
+    {
+        if (copy != NULL)
+        {
+            data -> Type = copy -> Type;
+            data -> Data = copy -> Data;
+        }
+    }
+
+    return data;
+}
+
+void SetFileData(FileData* data, int Type, char* Data)
+{
+    if (data != NULL)
+    {
+        data -> Type = Type;
+        data -> Data = Data;
+    }
+}
+
+FileData* GetData(Node* node)
+{
+    if (node == NULL) return NULL;
+    return node -> Data;
+}
+
+int GetDataType(FileData* data)
+{
+    if (data == NULL) return 0;
+    return data -> Type;
+}
+
+char* GetDataContent(FileData* data)
+{
+    if (data == NULL) return 0;
+    return data -> Data;
 }
